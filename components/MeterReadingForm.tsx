@@ -1,0 +1,180 @@
+import React, { useState, useMemo } from 'react';
+import { House } from '../types';
+import { WATER_RATE_PER_UNIT } from '../constants';
+import { supabase } from '../services/supabaseClient';
+
+interface MeterReadingFormProps {
+  onClose: () => void;
+  house: House;
+  setHouses: React.Dispatch<React.SetStateAction<House[]>>;
+}
+
+const MeterReadingForm: React.FC<MeterReadingFormProps> = ({ onClose, house, setHouses }) => {
+  const latestReading = useMemo(() => {
+    if (house.readings.length === 0) return null;
+    // Readings are pre-sorted, first is the latest
+    return house.readings[0];
+  }, [house.readings]);
+
+  const [monthYear, setMonthYear] = useState(new Date().toISOString().slice(0, 7));
+  const [previousReading, setPreviousReading] = useState<number | ''>(latestReading?.current_reading || 0);
+  const [currentReading, setCurrentReading] = useState<number | ''>('');
+  const [meterImage, setMeterImage] = useState<string | null>(null);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setMeterImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    if (currentReading === '' || previousReading === '') {
+        setError('กรุณากรอกเลขมิเตอร์ให้ครบถ้วน');
+        setLoading(false);
+        return;
+    }
+
+    if (currentReading < previousReading) {
+      setError('เลขมิเตอร์ปัจจุบันต้องไม่น้อยกว่าเดือนก่อนหน้า');
+      setLoading(false);
+      return;
+    }
+    
+    const [year, month] = monthYear.split('-');
+    const monthName = new Date(parseInt(year), parseInt(month) - 1).toLocaleString('th-TH', { month: 'long', year: 'numeric' });
+    const monthKey = `${year}-${month}`;
+
+    const unitsUsed = currentReading - previousReading;
+    const totalAmount = unitsUsed * WATER_RATE_PER_UNIT;
+
+    const newReadingForDb = {
+      house_id: house.id,
+      month_key: monthKey,
+      month: monthName,
+      previous_reading: previousReading,
+      current_reading: currentReading,
+      units_used: unitsUsed,
+      total_amount: totalAmount,
+      date_recorded: new Date().toISOString(),
+      meter_image: meterImage
+    };
+
+    try {
+        const { data: insertedReading, error: insertError } = await supabase
+            .from('meter_readings')
+            .insert(newReadingForDb)
+            .select()
+            .single();
+
+        if (insertError) throw insertError;
+        
+        // Update local state for immediate UI feedback
+        setHouses(prev => prev.map(h => {
+            if (h.id === house.id) {
+                const updatedReadings = [...h.readings, insertedReading].sort((a,b) => new Date(b.date_recorded).getTime() - new Date(a.date_recorded).getTime());
+                return { ...h, readings: updatedReadings };
+            }
+            return h;
+        }));
+
+        onClose();
+    } catch(err: any) {
+        console.error("Error saving meter reading:", err);
+        if (err.code === '23505') { // Postgres unique_violation code
+            setError(`ข้อมูลของเดือน ${monthName} มีอยู่ในระบบแล้ว`);
+        } else {
+            setError('เกิดข้อผิดพลาดในการบันทึกข้อมูล: ' + err.message);
+        }
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+      <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-md m-4">
+        <h2 className="text-2xl font-bold mb-2">บันทึกค่าน้ำ</h2>
+        <p className="text-gray-600 mb-6">บ้านเลขที่ {house.house_number}</p>
+
+        {error && <p className="text-red-500 mb-4 bg-red-100 p-3 rounded-md">{error}</p>}
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="month" className="block text-sm font-medium text-gray-700">สำหรับเดือน</label>
+            <input
+              type="month"
+              id="month"
+              value={monthYear}
+              onChange={e => setMonthYear(e.target.value)}
+              className="mt-1 block w-full bg-white border border-[#cccccc] text-black text-base p-[10px] rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 placeholder:text-[#666666]"
+               disabled={loading}
+            />
+          </div>
+          <div>
+            <label htmlFor="previousReading" className="block text-sm font-medium text-gray-700">เลขมิเตอร์เดือนก่อน</label>
+            <input
+              type="number"
+              id="previousReading"
+              value={previousReading}
+              onChange={e => setPreviousReading(e.target.value === '' ? '' : Number(e.target.value))}
+              className="mt-1 block w-full bg-white border border-[#cccccc] text-black text-base p-[10px] rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 placeholder:text-[#666666]"
+              placeholder="กรอกเลขมิเตอร์เดือนก่อน"
+              disabled={loading}
+            />
+          </div>
+          <div>
+            <label htmlFor="currentReading" className="block text-sm font-medium text-gray-700">เลขมิเตอร์เดือนนี้</label>
+            <input
+              type="number"
+              id="currentReading"
+              value={currentReading}
+              onChange={e => setCurrentReading(e.target.value === '' ? '' : Number(e.target.value))}
+              className="mt-1 block w-full bg-white border border-[#cccccc] text-black text-base p-[10px] rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 placeholder:text-[#666666]"
+              placeholder="กรอกเลขมิเตอร์ล่าสุด"
+              min={previousReading || 0}
+               disabled={loading}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="meterImage" className="block text-sm font-medium text-gray-700">
+                รูปถ่ายเลขมิเตอร์ (ถ้ามี)
+            </label>
+            <input
+                type="file"
+                id="meterImage"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="mt-1 block w-full text-base text-gray-700 file:bg-[#4da6ff] file:text-white file:text-base file:font-semibold file:px-[20px] file:py-[10px] file:rounded-lg file:border-0 file:mr-4 hover:file:bg-blue-600 cursor-pointer disabled:opacity-50"
+                 disabled={loading}
+            />
+            {meterImage && <img src={meterImage} alt="Meter Preview" className="mt-4 rounded-md max-h-40" />}
+          </div>
+
+          <div className="flex justify-end gap-4 pt-4">
+            <button type="button" onClick={onClose} className="text-base px-[20px] py-[10px] rounded-lg bg-[#dddddd] text-black hover:bg-gray-400 disabled:opacity-50" disabled={loading}>
+              ยกเลิก
+            </button>
+            <button type="submit" className="text-base px-[20px] py-[10px] rounded-lg bg-[#28a745] text-white hover:bg-green-600 disabled:opacity-50 flex items-center gap-2" disabled={loading}>
+               {loading && <i className="fas fa-spinner fa-spin"></i>}
+              บันทึกข้อมูล
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default MeterReadingForm;
