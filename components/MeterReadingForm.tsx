@@ -102,12 +102,12 @@ const MeterReadingForm: React.FC<MeterReadingFormProps> = ({ onClose, house, set
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-      <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-md m-4">
-        <h2 className="text-2xl font-bold mb-2">บันทึกค่าน้ำ</h2>
-        <p className="text-gray-600 mb-6">บ้านเลขที่ {house.house_number}</p>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
+      <div className="bg-white p-4 md:p-8 rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <h2 className="text-xl md:text-2xl font-bold mb-2">บันทึกค่าน้ำ</h2>
+        <p className="text-gray-600 mb-4 md:mb-6">บ้านเลขที่ {house.house_number}</p>
 
-        {error && <p className="text-red-500 mb-4 bg-red-100 p-3 rounded-md">{error}</p>}
+        {error && <p className="text-red-500 mb-4 bg-red-100 p-3 rounded-md text-sm">{error}</p>}
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -156,17 +156,17 @@ const MeterReadingForm: React.FC<MeterReadingFormProps> = ({ onClose, house, set
                 id="meterImage"
                 accept="image/*"
                 onChange={handleImageUpload}
-                className="mt-1 block w-full text-base text-gray-700 file:bg-[#4da6ff] file:text-white file:text-base file:font-semibold file:px-[20px] file:py-[10px] file:rounded-lg file:border-0 file:mr-4 hover:file:bg-blue-600 cursor-pointer disabled:opacity-50"
+                className="mt-1 block w-full text-sm md:text-base text-gray-700 file:bg-[#4da6ff] file:text-white file:text-sm md:file:text-base file:font-semibold file:px-3 md:file:px-[20px] file:py-2 md:file:py-[10px] file:rounded-lg file:border-0 file:mr-2 md:file:mr-4 hover:file:bg-blue-600 cursor-pointer disabled:opacity-50"
                  disabled={loading}
             />
-            {meterImage && <img src={meterImage} alt="Meter Preview" className="mt-4 rounded-md max-h-40" />}
+            {meterImage && <img src={meterImage} alt="Meter Preview" className="mt-4 rounded-md max-h-32 md:max-h-40 w-full object-cover" />}
           </div>
 
-          <div className="flex justify-end gap-4 pt-4">
-            <button type="button" onClick={onClose} className="text-base px-[20px] py-[10px] rounded-lg bg-[#dddddd] text-black hover:bg-gray-400 disabled:opacity-50" disabled={loading}>
+          <div className="flex flex-col sm:flex-row justify-end gap-2 md:gap-4 pt-4">
+            <button type="button" onClick={onClose} className="text-sm md:text-base px-4 md:px-[20px] py-2 md:py-[10px] rounded-lg bg-[#dddddd] text-black hover:bg-gray-400 disabled:opacity-50 order-2 sm:order-1" disabled={loading}>
               ยกเลิก
             </button>
-            <button type="submit" className="text-base px-[20px] py-[10px] rounded-lg bg-[#28a745] text-white hover:bg-green-600 disabled:opacity-50 flex items-center gap-2" disabled={loading}>
+            <button type="submit" className="text-sm md:text-base px-4 md:px-[20px] py-2 md:py-[10px] rounded-lg bg-[#28a745] text-white hover:bg-green-600 disabled:opacity-50 flex items-center justify-center gap-2 order-1 sm:order-2" disabled={loading}>
                {loading && <i className="fas fa-spinner fa-spin"></i>}
               บันทึกข้อมูล
             </button>

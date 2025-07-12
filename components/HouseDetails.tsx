@@ -80,55 +80,75 @@ const HouseDetails: React.FC<HouseDetailsProps> = ({ house, setHouses, onBack })
         </div>
       </div>
 
-      <div className="bg-white p-8 rounded-xl shadow-lg no-print">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-2xl font-semibold text-gray-700">ประวัติค่าน้ำ</h3>
-          <button onClick={() => setIsAddingReading(true)} className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center gap-2"><i className="fas fa-plus"></i><span>บันทึกค่าน้ำ</span></button>
+      <div className="bg-white p-4 md:p-8 rounded-xl shadow-lg no-print">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+          <h3 className="text-xl md:text-2xl font-semibold text-gray-700">ประวัติค่าน้ำ</h3>
+          <button onClick={() => setIsAddingReading(true)} className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center gap-2 w-full md:w-auto justify-center"><i className="fas fa-plus"></i><span>บันทึกค่าน้ำ</span></button>
         </div>
 
-        <div className="overflow-x-auto">
-          {sortedReadings.length > 0 ? (
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">เดือน</th>
-                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">เลขมิเตอร์ (ก่อน-ปัจจุบัน)</th>
-                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">จำนวนหน่วย</th>
-                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">ยอดชำระ (บาท)</th>
-                  <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">รูปภาพ</th>
-                  <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">ดำเนินการ</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {sortedReadings.map(reading => (
-                  <tr key={reading.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{reading.month}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">{reading.previous_reading} - {reading.current_reading}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">{reading.units_used}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-blue-600 text-right">{reading.total_amount.toLocaleString()}</td>
-                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
-                        {reading.meter_image ? (
-                           <button 
-                             onClick={() => setImageModal({ isOpen: true, imageUrl: reading.meter_image })} 
-                             className="text-blue-500 hover:underline"
-                           >
-                             ดูรูป
-                           </button>
-                        ) : 'ไม่มี'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
-                      <button onClick={() => handlePrint(reading)} className="text-gray-500 hover:text-blue-600 transition-colors"><i className="fas fa-print"></i></button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <div className="text-center py-10">
-              <p className="text-gray-500">ยังไม่มีประวัติการบันทึกค่าน้ำ</p>
-            </div>
-          )}
-        </div>
+        {sortedReadings.length > 0 ? (
+          <div className="space-y-4">
+            {sortedReadings.map(reading => (
+              <div key={reading.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                {/* Header with month and actions */}
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex-1">
+                    <h4 className="text-lg font-semibold text-gray-800">{reading.month}</h4>
+                    <p className="text-sm text-gray-500">ยอดชำระ: <span className="font-semibold text-blue-600">{reading.total_amount.toLocaleString()} บาท</span></p>
+                  </div>
+                  <div className="flex gap-2">
+                    {reading.meter_image && (
+                      <button 
+                        onClick={() => setImageModal({ isOpen: true, imageUrl: reading.meter_image })} 
+                        className="text-blue-500 hover:text-blue-700 p-2 rounded-full hover:bg-blue-50 transition-colors"
+                        title="ดูรูป"
+                      >
+                        <i className="fas fa-image"></i>
+                      </button>
+                    )}
+                    <button 
+                      onClick={() => handlePrint(reading)} 
+                      className="text-gray-500 hover:text-blue-600 p-2 rounded-full hover:bg-gray-50 transition-colors"
+                      title="พิมพ์"
+                    >
+                      <i className="fas fa-print"></i>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Meter readings grid */}
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <p className="text-gray-600 mb-1">เลขมิเตอร์</p>
+                    <div className="space-y-1">
+                      <p><span className="text-gray-500">ก่อน:</span> <span className="font-medium">{reading.previous_reading}</span></p>
+                      <p><span className="text-gray-500">ปัจจุบัน:</span> <span className="font-medium">{reading.current_reading}</span></p>
+                    </div>
+                  </div>
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <p className="text-gray-600 mb-1">จำนวนหน่วย</p>
+                    <p className="text-lg font-semibold text-green-600">{reading.units_used} หน่วย</p>
+                  </div>
+                </div>
+
+                {/* Image indicator for mobile */}
+                {reading.meter_image && (
+                  <div className="mt-3 pt-3 border-t border-gray-100">
+                    <p className="text-xs text-gray-500 flex items-center gap-1">
+                      <i className="fas fa-image"></i>
+                      มีรูปภาพมิเตอร์
+                    </p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-10">
+            <i className="fas fa-water text-4xl text-gray-300 mb-4"></i>
+            <p className="text-gray-500">ยังไม่มีประวัติการบันทึกค่าน้ำ</p>
+          </div>
+        )}
       </div>
       {readingToPrint && <Invoice house={house} reading={readingToPrint} />}
       
