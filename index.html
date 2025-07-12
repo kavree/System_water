@@ -31,6 +31,19 @@
           display: none;
         }
       }
+      @media print and (max-width: 600px) {
+        body {
+          font-size: 10px;
+        }
+        #print-section {
+          padding: 0;
+          width: 100vw !important;
+        }
+        table, th, td {
+          font-size: 10px;
+          padding: 2px;
+        }
+      }
     </style>
   <script type="importmap">
 {
