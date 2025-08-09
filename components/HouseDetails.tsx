@@ -16,6 +16,7 @@ const HouseDetails: React.FC<HouseDetailsProps> = ({ house, setHouses, onBack })
   const [isEditingHouse, setIsEditingHouse] = useState(false);
   const [isAddingReading, setIsAddingReading] = useState(false);
   const [readingToPrint, setReadingToPrint] = useState<MeterReading | null>(null);
+  const [readingToEdit, setReadingToEdit] = useState<MeterReading | null>(null);
   const [imageModal, setImageModal] = useState<{ isOpen: boolean; imageUrl: string | null }>({ isOpen: false, imageUrl: null });
 
   const handlePrint = (reading: MeterReading) => {
@@ -38,6 +39,35 @@ const HouseDetails: React.FC<HouseDetailsProps> = ({ house, setHouses, onBack })
         console.error("Failed to delete house:", err);
         alert("เกิดข้อผิดพลาดในการลบบ้าน");
       }
+    }
+  };
+
+  const handleEditReading = (reading: MeterReading) => {
+    setReadingToEdit(reading);
+  };
+
+  const handleDeleteReading = async (reading: MeterReading) => {
+    if (!window.confirm(`ยืนยันการลบข้อมูลค่าน้ำเดือน ${reading.month}?`)) return;
+
+    // Optimistic UI update
+    let previousState: House[] = [];
+    setHouses(prev => {
+      previousState = prev;
+      return prev.map(h => {
+        if (h.id === house.id) {
+          return { ...h, readings: h.readings.filter(r => r.id !== reading.id) };
+        }
+        return h;
+      });
+    });
+
+    try {
+      const { error } = await supabase.from('meter_readings').delete().eq('id', reading.id);
+      if (error) throw error;
+    } catch (err) {
+      console.error('Failed to delete reading:', err);
+      alert('ลบไม่สำเร็จ ระบบจะย้อนกลับการเปลี่ยนแปลง');
+      setHouses(previousState);
     }
   };
 
@@ -64,6 +94,15 @@ const HouseDetails: React.FC<HouseDetailsProps> = ({ house, setHouses, onBack })
           onClose={() => setIsAddingReading(false)}
           house={house}
           setHouses={setHouses}
+        />
+      )}
+
+      {readingToEdit && (
+        <MeterReadingForm
+          onClose={() => setReadingToEdit(null)}
+          house={house}
+          setHouses={setHouses}
+          existingReading={readingToEdit}
         />
       )}
 
@@ -97,17 +136,31 @@ const HouseDetails: React.FC<HouseDetailsProps> = ({ house, setHouses, onBack })
                     <p className="text-sm text-gray-500">ยอดชำระ: <span className="font-semibold text-blue-600">{reading.total_amount.toLocaleString()} บาท</span></p>
                   </div>
                   <div className="flex gap-2">
+                    <button
+                      onClick={() => handleEditReading(reading)}
+                      className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition-colors"
+                      title="แก้ไข"
+                    >
+                      แก้ไข
+                    </button>
+                    <button
+                      onClick={() => handleDeleteReading(reading)}
+                      className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                      title="ลบ"
+                    >
+                      ลบ
+                    </button>
                     {reading.meter_image && (
-                      <button 
-                        onClick={() => setImageModal({ isOpen: true, imageUrl: reading.meter_image })} 
+                      <button
+                        onClick={() => setImageModal({ isOpen: true, imageUrl: reading.meter_image })}
                         className="text-blue-500 hover:text-blue-700 p-2 rounded-full hover:bg-blue-50 transition-colors"
                         title="ดูรูป"
                       >
                         <i className="fas fa-image"></i>
                       </button>
                     )}
-                    <button 
-                      onClick={() => handlePrint(reading)} 
+                    <button
+                      onClick={() => handlePrint(reading)}
                       className="text-gray-500 hover:text-blue-600 p-2 rounded-full hover:bg-gray-50 transition-colors"
                       title="พิมพ์"
                     >
