@@ -16,8 +16,8 @@ const HouseDetails: React.FC<HouseDetailsProps> = ({ house, setHouses, onBack })
   const [isEditingHouse, setIsEditingHouse] = useState(false);
   const [isAddingReading, setIsAddingReading] = useState(false);
   const [readingToPrint, setReadingToPrint] = useState<MeterReading | null>(null);
-  const [readingToEdit, setReadingToEdit] = useState<MeterReading | null>(null);
   const [imageModal, setImageModal] = useState<{ isOpen: boolean; imageUrl: string | null }>({ isOpen: false, imageUrl: null });
+  const [readingToEdit, setReadingToEdit] = useState<MeterReading | null>(null);
 
   const handlePrint = (reading: MeterReading) => {
     setReadingToPrint(reading);
@@ -42,32 +42,28 @@ const HouseDetails: React.FC<HouseDetailsProps> = ({ house, setHouses, onBack })
     }
   };
 
-  const handleEditReading = (reading: MeterReading) => {
-    setReadingToEdit(reading);
-  };
-
   const handleDeleteReading = async (reading: MeterReading) => {
-    if (!window.confirm(`ยืนยันการลบข้อมูลค่าน้ำเดือน ${reading.month}?`)) return;
+    if (window.confirm(`ต้องการลบประวัติค่าน้ำเดือน ${reading.month} ใช่หรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้`)) {
+      try {
+        const { error } = await supabase
+          .from('meter_readings')
+          .delete()
+          .eq('id', reading.id);
+        if (error) throw error;
 
-    // Optimistic UI update
-    let previousState: House[] = [];
-    setHouses(prev => {
-      previousState = prev;
-      return prev.map(h => {
-        if (h.id === house.id) {
-          return { ...h, readings: h.readings.filter(r => r.id !== reading.id) };
-        }
-        return h;
-      });
-    });
-
-    try {
-      const { error } = await supabase.from('meter_readings').delete().eq('id', reading.id);
-      if (error) throw error;
-    } catch (err) {
-      console.error('Failed to delete reading:', err);
-      alert('ลบไม่สำเร็จ ระบบจะย้อนกลับการเปลี่ยนแปลง');
-      setHouses(previousState);
+        // Update local state
+        setHouses(prev =>
+          prev.map(h => {
+            if (h.id === house.id) {
+              return { ...h, readings: h.readings.filter(r => r.id !== reading.id) };
+            }
+            return h;
+          })
+        );
+      } catch (err) {
+        console.error('Failed to delete reading:', err);
+        alert('เกิดข้อผิดพลาดในการลบรายการค่าน้ำ');
+      }
     }
   };
 
@@ -91,18 +87,10 @@ const HouseDetails: React.FC<HouseDetailsProps> = ({ house, setHouses, onBack })
       
       {isAddingReading && (
         <MeterReadingForm
-          onClose={() => setIsAddingReading(false)}
+          onClose={() => { setIsAddingReading(false); setReadingToEdit(null); }}
           house={house}
           setHouses={setHouses}
-        />
-      )}
-
-      {readingToEdit && (
-        <MeterReadingForm
-          onClose={() => setReadingToEdit(null)}
-          house={house}
-          setHouses={setHouses}
-          existingReading={readingToEdit}
+          existingReading={readingToEdit ?? undefined}
         />
       )}
 
@@ -122,7 +110,7 @@ const HouseDetails: React.FC<HouseDetailsProps> = ({ house, setHouses, onBack })
       <div className="bg-white p-4 md:p-8 rounded-xl shadow-lg no-print">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
           <h3 className="text-xl md:text-2xl font-semibold text-gray-700">ประวัติค่าน้ำ</h3>
-          <button onClick={() => setIsAddingReading(true)} className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center gap-2 w-full md:w-auto justify-center"><i className="fas fa-plus"></i><span>บันทึกค่าน้ำ</span></button>
+          <button onClick={() => { setReadingToEdit(null); setIsAddingReading(true); }} className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center gap-2 w-full md:w-auto justify-center"><i className="fas fa-plus"></i><span>บันทึกค่าน้ำ</span></button>
         </div>
 
         {sortedReadings.length > 0 ? (
@@ -136,20 +124,6 @@ const HouseDetails: React.FC<HouseDetailsProps> = ({ house, setHouses, onBack })
                     <p className="text-sm text-gray-500">ยอดชำระ: <span className="font-semibold text-blue-600">{reading.total_amount.toLocaleString()} บาท</span></p>
                   </div>
                   <div className="flex gap-2">
-                    <button
-                      onClick={() => handleEditReading(reading)}
-                      className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition-colors"
-                      title="แก้ไข"
-                    >
-                      แก้ไข
-                    </button>
-                    <button
-                      onClick={() => handleDeleteReading(reading)}
-                      className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
-                      title="ลบ"
-                    >
-                      ลบ
-                    </button>
                     {reading.meter_image && (
                       <button
                         onClick={() => setImageModal({ isOpen: true, imageUrl: reading.meter_image })}
@@ -159,6 +133,20 @@ const HouseDetails: React.FC<HouseDetailsProps> = ({ house, setHouses, onBack })
                         <i className="fas fa-image"></i>
                       </button>
                     )}
+                    <button
+                      onClick={() => { setReadingToEdit(reading); setIsAddingReading(true); }}
+                      className="text-yellow-600 hover:text-yellow-700 p-2 rounded-full hover:bg-yellow-50 transition-colors"
+                      title="แก้ไข"
+                    >
+                      <i className="fas fa-edit"></i>
+                    </button>
+                    <button
+                      onClick={() => handleDeleteReading(reading)}
+                      className="text-red-600 hover:text-red-700 p-2 rounded-full hover:bg-red-50 transition-colors"
+                      title="ลบ"
+                    >
+                      <i className="fas fa-trash"></i>
+                    </button>
                     <button
                       onClick={() => handlePrint(reading)}
                       className="text-gray-500 hover:text-blue-600 p-2 rounded-full hover:bg-gray-50 transition-colors"
