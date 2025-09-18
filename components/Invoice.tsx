@@ -197,7 +197,6 @@ const InvoiceContent: React.FC<{ house: House; reading: MeterReading }> = ({ hou
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center pb-4 border-b-2 border-gray-800 gap-4">
                 <div>
                     <h1 className="text-xl md:text-3xl font-bold">ใบแจ้งค่าน้ำประปา</h1>
-                    <p className="text-base md:text-lg">หมู่บ้านสุขใจวิลเลจ</p>
                 </div>
                 <div className="text-right">
                     <p><strong>ประจำเดือน:</strong> {reading.month}</p>

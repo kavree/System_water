@@ -91,9 +91,18 @@ function App() {
           />
         ) : (
           <div className="text-center p-10">
-            <p>ไม่พบข้อมูลบ้านที่เลือก</p>
-            <button onClick={() => setView({ page: 'dashboard' })} className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-              กลับไปหน้าหลัก
+            <div className="mb-6">
+              <i className="fas fa-home text-4xl text-gray-300 mb-4"></i>
+              <p className="text-gray-600">ไม่พบข้อมูลบ้านที่เลือก</p>
+            </div>
+            <button 
+              onClick={() => setView({ page: 'dashboard' })} 
+              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold py-4 px-8 rounded-xl transition-all duration-300 flex items-center justify-center gap-3 text-base shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-blue-300 mx-auto group"
+            >
+              <div className="bg-white/20 group-hover:bg-white/30 rounded-full p-2 transition-colors duration-200">
+                <i className="fas fa-home text-lg"></i>
+              </div>
+              <span>กลับไปหน้าหลัก</span>
             </button>
           </div>
         );

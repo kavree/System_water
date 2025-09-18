@@ -84,8 +84,14 @@ const HouseDetails: React.FC<HouseDetailsProps> = ({ house, setHouses, onBack })
 
   return (
     <div>
-      <button onClick={onBack} className="mb-6 text-blue-600 hover:text-blue-800 transition-colors flex items-center gap-2 no-print">
-        <i className="fas fa-arrow-left"></i>
+      <button 
+        onClick={onBack} 
+        className="mb-6 bg-white hover:bg-gray-50 text-gray-700 font-semibold py-3 px-6 rounded-xl transition-all duration-200 flex items-center gap-3 text-base shadow-lg hover:shadow-xl border border-gray-200 hover:border-gray-300 focus:outline-none focus:ring-4 focus:ring-gray-300 no-print group"
+        aria-label="กลับไปหน้าหลัก"
+      >
+        <div className="bg-gray-100 group-hover:bg-blue-100 rounded-full p-2 transition-colors duration-200">
+          <i className="fas fa-arrow-left text-sm group-hover:text-blue-600"></i>
+        </div>
         <span>กลับไปหน้าหลัก</span>
       </button>
 

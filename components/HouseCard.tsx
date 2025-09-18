@@ -48,8 +48,14 @@ const HouseCard: React.FC<HouseCardProps> = ({ house, onSelect }) => {
           )}
         </div>
       </div>
-       <div className="mt-4 text-right text-sm text-blue-500 hover:text-blue-700">
-        ดูรายละเอียด <i className="fas fa-arrow-right ml-1"></i>
+      <div className="mt-6 pt-4 border-t border-gray-100">
+        <button className="w-full bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-xl px-5 py-3 font-medium shadow-sm focus:outline-none focus:ring-4 focus:ring-indigo-400 flex items-center justify-between transition-all duration-200">
+          <span className="flex items-center gap-2">
+            <i className="fas fa-eye text-sm opacity-90"></i>
+            <span>ดูรายละเอียด</span>
+          </span>
+          <i className="fas fa-arrow-right" style={{ fontSize: '20px' }}></i>
+        </button>
       </div>
     </div>
   );
