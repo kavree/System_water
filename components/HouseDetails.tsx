@@ -1,9 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { House, MeterReading } from '../types';
 import HouseForm from './HouseForm';
 import MeterReadingForm from './MeterReadingForm';
 import Invoice from './Invoice';
+import { getCurrentWaterUnitRate } from '../services/waterUnitService';
 import { supabase } from '../services/supabaseClient';
 
 interface HouseDetailsProps {
@@ -18,13 +19,24 @@ const HouseDetails: React.FC<HouseDetailsProps> = ({ house, setHouses, onBack })
   const [readingToPrint, setReadingToPrint] = useState<MeterReading | null>(null);
   const [imageModal, setImageModal] = useState<{ isOpen: boolean; imageUrl: string | null }>({ isOpen: false, imageUrl: null });
   const [readingToEdit, setReadingToEdit] = useState<MeterReading | null>(null);
+  const [currentWaterRate, setCurrentWaterRate] = useState<number>(5);
+
+  // Fetch current water rate when component mounts
+  useEffect(() => {
+    const fetchCurrentRate = async () => {
+      try {
+        const rate = await getCurrentWaterUnitRate();
+        setCurrentWaterRate(rate);
+      } catch (err) {
+        console.error('Failed to fetch current water rate:', err);
+      }
+    };
+
+    fetchCurrentRate();
+  }, []);
 
   const handlePrint = (reading: MeterReading) => {
     setReadingToPrint(reading);
-    setTimeout(() => {
-      window.print();
-      setReadingToPrint(null);
-    }, 100);
   };
   
   const handleDeleteHouse = async () => {
@@ -99,6 +111,7 @@ const HouseDetails: React.FC<HouseDetailsProps> = ({ house, setHouses, onBack })
           <div>
             <h2 className="text-3xl font-bold text-gray-800">{house.house_number}</h2>
             <p className="text-lg text-gray-600 mt-1">{house.owner_name}</p>
+            <p className="text-sm text-blue-600 mt-2">อัตราค่าน้ำปัจจุบัน: {currentWaterRate} บาท/หน่วย</p>
           </div>
           <div className="flex gap-2 mt-4 md:mt-0">
             <button onClick={() => setIsEditingHouse(true)} className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors flex items-center gap-2"><i className="fas fa-edit"></i><span>แก้ไข</span></button>
@@ -167,8 +180,11 @@ const HouseDetails: React.FC<HouseDetailsProps> = ({ house, setHouses, onBack })
                     </div>
                   </div>
                   <div className="bg-gray-50 p-3 rounded-lg">
-                    <p className="text-gray-600 mb-1">จำนวนหน่วย</p>
-                    <p className="text-lg font-semibold text-green-600">{reading.units_used} หน่วย</p>
+                    <p className="text-gray-600 mb-1">จำนวนหน่วย และ อัตรา</p>
+                    <div className="space-y-1">
+                      <p className="text-lg font-semibold text-green-600">{reading.units_used} หน่วย</p>
+                      <p className="text-sm text-gray-600">{reading.rate_per_unit || 5} บาท/หน่วย</p>
+                    </div>
                   </div>
                 </div>
 
@@ -191,7 +207,14 @@ const HouseDetails: React.FC<HouseDetailsProps> = ({ house, setHouses, onBack })
           </div>
         )}
       </div>
-      {readingToPrint && <Invoice house={house} reading={readingToPrint} />}
+      {readingToPrint && (
+        <Invoice 
+          house={house} 
+          reading={readingToPrint} 
+          showPrintControls={true}
+          onClose={() => setReadingToPrint(null)}
+        />
+      )}
       
       {/* Image Modal */}
       {imageModal.isOpen && imageModal.imageUrl && (

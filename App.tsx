@@ -3,19 +3,44 @@ import React, { useState, useEffect } from 'react';
 import { House, ViewState } from './types';
 import Dashboard from './components/Dashboard';
 import HouseDetails from './components/HouseDetails';
+import PWAStatus from './components/PWAStatus';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { supabase } from './services/supabaseClient';
+import { pwaService } from './services/pwaService';
 
 function App() {
   const [houses, setHouses] = useState<House[]>([]);
   const [view, setView] = useState<ViewState>({ page: 'dashboard' });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  const refreshData = () => {
+    setRefreshKey(prev => prev + 1);
+  };
+
+  // Initialize PWA service
+  useEffect(() => {
+    const initializePWA = async () => {
+      try {
+        await pwaService.init();
+        await pwaService.requestPersistentStorage();
+        setIsInitialized(true);
+      } catch (error) {
+        console.error('PWA initialization failed:', error);
+        setIsInitialized(true); // Continue without PWA features
+      }
+    };
+
+    initializePWA();
+  }, []);
 
   useEffect(() => {
     const fetchHouses = async () => {
       try {
+        setLoading(true);
         // Fetch houses and their related readings, ordered for consistency
         const { data, error } = await supabase
           .from('houses')
@@ -32,6 +57,7 @@ function App() {
           }
         } else {
            setHouses(data || []);
+           setError(null);
         }
 
       } catch (err: any) {
@@ -43,7 +69,7 @@ function App() {
     };
 
     fetchHouses();
-  }, []); // Changed dependency to empty array to run only once on mount
+  }, [refreshKey]); // Added refreshKey dependency
 
   const selectedHouse = view.page === 'details' ? houses.find(h => h.id === view.houseId) : undefined;
 
@@ -73,7 +99,7 @@ function App() {
         );
       case 'dashboard':
       default:
-        return <Dashboard houses={houses} setHouses={setHouses} setView={setView} />;
+        return <Dashboard houses={houses} setHouses={setHouses} setView={setView} onDataRefresh={refreshData} />;
     }
   };
 
@@ -84,6 +110,7 @@ function App() {
         {renderContent()}
       </main>
       <Footer />
+      {isInitialized && <PWAStatus />}
     </div>
   );
 }

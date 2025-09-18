@@ -40,6 +40,7 @@ export type Database = {
           previous_reading: number;
           current_reading: number;
           units_used: number;
+          rate_per_unit: number;
           total_amount: number;
           date_recorded: string;
           meter_image: string | null;
@@ -53,6 +54,7 @@ export type Database = {
           previous_reading: number;
           current_reading: number;
           units_used: number;
+          rate_per_unit: number;
           total_amount: number;
           date_recorded: string;
           meter_image?: string | null;
@@ -66,6 +68,7 @@ export type Database = {
           previous_reading?: number;
           current_reading?: number;
           units_used?: number;
+          rate_per_unit?: number;
           total_amount?: number;
           date_recorded?: string;
           meter_image?: string | null;
@@ -79,6 +82,30 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      water_unit_rates: {
+        Row: {
+          id: string;
+          created_at: string;
+          rate_per_unit: number;
+          effective_from: string;
+          is_active: boolean;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          rate_per_unit: number;
+          effective_from?: string;
+          is_active?: boolean;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          rate_per_unit?: number;
+          effective_from?: string;
+          is_active?: boolean;
+        };
+        Relationships: [];
       };
     };
     Views: {

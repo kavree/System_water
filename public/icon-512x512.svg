@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Water drop shape -->
+  <path d="M256 50 
+           C256 50, 100 200, 100 320 
+           C100 408, 167.5 480, 256 480 
+           C344.5 480, 412 408, 412 320 
+           C412 200, 256 50, 256 50 Z" 
+        fill="#3b82f6"/>
+  
+  <!-- Inner highlight -->
+  <ellipse cx="230" cy="300" rx="40" ry="64" 
+           fill="#60a5fa" 
+           opacity="0.7"/>
+  
+  <!-- Small bubble -->
+  <circle cx="210" cy="240" r="16" 
+          fill="#93c5fd" 
+          opacity="0.8"/>
+  
+  <!-- Medium bubble -->
+  <circle cx="310" cy="280" r="12" 
+          fill="#dbeafe" 
+          opacity="0.9"/>
+          
+  <!-- Tiny bubble -->
+  <circle cx="280" cy="220" r="8" 
+          fill="#f8fafc" 
+          opacity="0.8"/>
+  
+  <!-- Wave pattern at bottom -->
+  <path d="M130 400 Q180 380, 230 400 T330 400 T430 400" 
+        stroke="#1e40af" 
+        stroke-width="8" 
+        fill="none" 
+        opacity="0.6"/>
+        
+  <!-- Additional small waves -->
+  <path d="M150 420 Q200 410, 250 420 T350 420" 
+        stroke="#2563eb" 
+        stroke-width="4" 
+        fill="none" 
+        opacity="0.4"/>
+</svg>

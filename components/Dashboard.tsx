@@ -1,20 +1,66 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { House, ViewState } from '../types';
 import HouseCard from './HouseCard';
 import HouseForm from './HouseForm';
+import WaterUnitForm from './WaterUnitForm';
+import Notification from './Notification';
 import { generateSampleData } from '../services/geminiService';
+import { getCurrentWaterUnitRate } from '../services/waterUnitService';
 import { supabase } from '../services/supabaseClient';
 
 interface DashboardProps {
   houses: House[];
   setHouses: React.Dispatch<React.SetStateAction<House[]>>;
   setView: React.Dispatch<React.SetStateAction<ViewState>>;
+  onDataRefresh?: () => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ houses, setHouses, setView }) => {
+const Dashboard: React.FC<DashboardProps> = ({ houses, setHouses, setView, onDataRefresh }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddingHouse, setIsAddingHouse] = useState(false);
+  const [isEditingWaterUnit, setIsEditingWaterUnit] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [currentWaterRate, setCurrentWaterRate] = useState<number>(5);
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  // Fetch current water rate when component mounts
+  useEffect(() => {
+    const fetchCurrentRate = async () => {
+      try {
+        const rate = await getCurrentWaterUnitRate();
+        setCurrentWaterRate(rate);
+      } catch (err) {
+        console.error('Failed to fetch current water rate:', err);
+      }
+    };
+
+    fetchCurrentRate();
+  }, []);
+
+  const handleRateUpdated = async () => {
+    try {
+      // Refresh the current rate
+      const newRate = await getCurrentWaterUnitRate();
+      setCurrentWaterRate(newRate);
+      
+      // Show success notification
+      setNotification({
+        message: `อัปเดตอัตราค่าน้ำเป็น ${newRate} บาท/หน่วย เรียบร้อยแล้ว`,
+        type: 'success'
+      });
+      
+      // Trigger data refresh from parent component
+      if (onDataRefresh) {
+        onDataRefresh();
+      }
+    } catch (err) {
+      console.error('Failed to refresh data after rate update:', err);
+      setNotification({
+        message: 'เกิดข้อผิดพลาดในการอัปเดตข้อมูล',
+        type: 'error'
+      });
+    }
+  };
 
   const filteredHouses = useMemo(() => {
     if (!searchQuery) return houses;
@@ -83,7 +129,10 @@ const Dashboard: React.FC<DashboardProps> = ({ houses, setHouses, setView }) => 
   return (
     <div>
       <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-        <h2 className="text-3xl font-bold text-gray-700">ภาพรวมทั้งหมด</h2>
+        <div>
+          <h2 className="text-3xl font-bold text-gray-700">ภาพรวมทั้งหมด</h2>
+          <p className="text-sm text-blue-600 mt-1">อัตราค่าน้ำปัจจุบัน: {currentWaterRate} บาท/หน่วย</p>
+        </div>
         <div className="w-full md:w-auto flex flex-col sm:flex-row gap-2">
            <div className="relative w-full md:w-64">
             <input
@@ -95,6 +144,13 @@ const Dashboard: React.FC<DashboardProps> = ({ houses, setHouses, setView }) => 
             />
             <i className="fa fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
           </div>
+          <button
+            onClick={() => setIsEditingWaterUnit(true)}
+            className="w-full sm:w-auto px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+          >
+            <i className="fas fa-edit"></i>
+            <span>แก้ไขหน่วยน้ำ</span>
+          </button>
           <button
             onClick={() => setIsAddingHouse(true)}
             className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
@@ -109,6 +165,13 @@ const Dashboard: React.FC<DashboardProps> = ({ houses, setHouses, setView }) => 
         <HouseForm
           onClose={() => setIsAddingHouse(false)}
           setHouses={setHouses}
+        />
+      )}
+
+      {isEditingWaterUnit && (
+        <WaterUnitForm
+          onClose={() => setIsEditingWaterUnit(false)}
+          onRateUpdated={handleRateUpdated}
         />
       )}
 
@@ -131,6 +194,14 @@ const Dashboard: React.FC<DashboardProps> = ({ houses, setHouses, setView }) => 
             {isGenerating ? <><i className="fas fa-spinner fa-spin"></i><span>กำลังสร้าง...</span></> : <><i className="fas fa-magic"></i><span>สร้างข้อมูลตัวอย่าง</span></>}
           </button>
         </div>
+      )}
+
+      {notification && (
+        <Notification
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification(null)}
+        />
       )}
     </div>
   );

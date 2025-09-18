@@ -2,7 +2,27 @@
 <html lang="th">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- Favicon and Apple Touch Icon -->
+    <link rel="icon" type="image/svg+xml" href="/src/assets/favicon-16x16.svg" sizes="16x16" />
+    <link rel="icon" type="image/svg+xml" href="/src/assets/favicon-32x32.svg" sizes="32x32" />
+    <link rel="icon" type="image/svg+xml" href="/src/assets/logo-water.svg" />
+    <link rel="apple-touch-icon" href="/src/assets/logo-water.svg" />
+    <link rel="shortcut icon" href="/src/assets/logo-water.svg" type="image/svg+xml" />
+    
+    <!-- PWA and Theme Color -->
+    <meta name="theme-color" content="#3b82f6" />
+    <meta name="msapplication-TileColor" content="#3b82f6" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="น้ำประปา" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    
+    <!-- Windows 8/10 Tiles -->
+    <meta name="msapplication-TileImage" content="/src/assets/logo-water.svg" />
+    <meta name="msapplication-config" content="/browserconfig.xml" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ระบบจัดการค่าน้ำประปาหมู่บ้าน</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -14,9 +34,42 @@
       body {
         font-family: 'Sarabun', sans-serif;
       }
+      
+      /* Water logo animation */
+      .water-logo {
+        animation: gentle-float 3s ease-in-out infinite;
+      }
+      
+      @keyframes gentle-float {
+        0%, 100% {
+          transform: translateY(0px);
+        }
+        50% {
+          transform: translateY(-2px);
+        }
+      }
+      
+      /* Bubble animation */
+      .water-bubble {
+        animation: bubble-float 4s ease-in-out infinite;
+      }
+      
+      @keyframes bubble-float {
+        0%, 100% {
+          transform: translateY(0px) scale(1);
+          opacity: 0.8;
+        }
+        50% {
+          transform: translateY(-1px) scale(1.05);
+          opacity: 1;
+        }
+      }
+      
       .print-only {
         display: none;
       }
+      
+      /* Mobile-first print styles */
       @media print {
         body * {
           visibility: hidden;
@@ -35,6 +88,18 @@
         }
         .print-only {
           display: block !important;
+        }
+        
+        /* Ensure full page width for print */
+        #print-section .border-2 {
+          border: 2px solid #000 !important;
+          page-break-inside: avoid;
+        }
+        
+        /* Better print layout */
+        #print-section {
+          margin: 0 !important;
+          padding: 0 !important;
         }
       }
       @media print and (max-width: 600px) {
@@ -78,5 +143,145 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+              console.log('SW registered: ', registration);
+              
+              // Check for updates
+              registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                if (newWorker) {
+                  newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                      // New content available, show update notification
+                      showUpdateNotification();
+                    }
+                  });
+                }
+              });
+            })
+            .catch((registrationError) => {
+              console.log('SW registration failed: ', registrationError);
+            });
+        });
+      }
+      
+      // PWA Install Prompt
+      let deferredPrompt;
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        showInstallPrompt();
+      });
+      
+      function showInstallPrompt() {
+        const installBanner = document.createElement('div');
+        installBanner.id = 'install-banner';
+        installBanner.innerHTML = `
+          <div style="position: fixed; top: 0; left: 0; right: 0; background: #3b82f6; color: white; padding: 12px; text-align: center; z-index: 9999; font-family: 'Sarabun', sans-serif;">
+            <div style="display: flex; align-items: center; justify-content: space-between; max-width: 800px; margin: 0 auto;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-download"></i>
+                <span>ติดตั้งแอปเพื่อใช้งานได้ง่ายขึ้น</span>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button onclick="installPWA()" style="background: white; color: #3b82f6; border: none; padding: 6px 12px; border-radius: 4px; font-weight: 600; cursor: pointer;">
+                  ติดตั้ง
+                </button>
+                <button onclick="dismissInstall()" style="background: transparent; color: white; border: 1px solid white; padding: 6px 12px; border-radius: 4px; cursor: pointer;">
+                  ปิด
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(installBanner);
+        
+        // Add padding to body to account for banner
+        document.body.style.paddingTop = '60px';
+      }
+      
+      function installPWA() {
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          deferredPrompt.userChoice.then((choiceResult) => {
+            if (choiceResult.outcome === 'accepted') {
+              console.log('User accepted the install prompt');
+            }
+            deferredPrompt = null;
+            dismissInstall();
+          });
+        }
+      }
+      
+      function dismissInstall() {
+        const banner = document.getElementById('install-banner');
+        if (banner) {
+          banner.remove();
+          document.body.style.paddingTop = '0';
+        }
+      }
+      
+      function showUpdateNotification() {
+        const updateBanner = document.createElement('div');
+        updateBanner.innerHTML = `
+          <div style="position: fixed; bottom: 20px; left: 20px; right: 20px; background: #10b981; color: white; padding: 16px; border-radius: 8px; text-align: center; z-index: 9999; font-family: 'Sarabun', sans-serif; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-sync-alt"></i>
+                <span>มีการอัปเดตใหม่</span>
+              </div>
+              <button onclick="window.location.reload()" style="background: white; color: #10b981; border: none; padding: 6px 12px; border-radius: 4px; font-weight: 600; cursor: pointer;">
+                รีเฟรช
+              </button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(updateBanner);
+        
+        // Auto dismiss after 10 seconds
+        setTimeout(() => {
+          updateBanner.remove();
+        }, 10000);
+      }
+      
+      // Handle online/offline status
+      function updateOnlineStatus() {
+        const status = navigator.onLine ? 'online' : 'offline';
+        document.body.setAttribute('data-connection', status);
+        
+        if (!navigator.onLine) {
+          showOfflineNotification();
+        }
+      }
+      
+      function showOfflineNotification() {
+        const offlineBanner = document.createElement('div');
+        offlineBanner.id = 'offline-banner';
+        offlineBanner.innerHTML = `
+          <div style="position: fixed; top: 0; left: 0; right: 0; background: #f59e0b; color: white; padding: 8px; text-align: center; z-index: 9998; font-family: 'Sarabun', sans-serif;">
+            <i class="fas fa-wifi-slash"></i>
+            คุณอยู่ในโหมดออฟไลน์ - ข้อมูลบางส่วนอาจไม่เป็นปัจจุบัน
+          </div>
+        `;
+        document.body.appendChild(offlineBanner);
+      }
+      
+      window.addEventListener('online', () => {
+        updateOnlineStatus();
+        const banner = document.getElementById('offline-banner');
+        if (banner) banner.remove();
+      });
+      
+      window.addEventListener('offline', updateOnlineStatus);
+      
+      // Initial status
+      updateOnlineStatus();
+    </script>
   </body>
 </html>

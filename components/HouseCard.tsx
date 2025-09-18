@@ -1,7 +1,6 @@
 
 import React, { useMemo } from 'react';
 import { House } from '../types';
-import { WATER_RATE_PER_UNIT } from '../constants';
 
 interface HouseCardProps {
   house: House;
@@ -40,7 +39,7 @@ const HouseCard: React.FC<HouseCardProps> = ({ house, onSelect }) => {
             <div>
               <p className="text-sm text-gray-500">ค่าน้ำเดือนล่าสุด ({latestReading.month})</p>
               <p className="text-2xl font-bold text-blue-600 mt-1">{latestReading.total_amount.toLocaleString()} บาท</p>
-              <p className="text-sm text-gray-600 mt-1">จำนวน {latestReading.units_used} หน่วย (หน่วยละ {WATER_RATE_PER_UNIT} บาท)</p>
+              <p className="text-sm text-gray-600 mt-1">จำนวน {latestReading.units_used} หน่วย (หน่วยละ {latestReading.rate_per_unit || 5} บาท)</p>
             </div>
           ) : (
             <div className="text-center py-4">

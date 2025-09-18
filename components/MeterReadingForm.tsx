@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { House, MeterReading } from '../types';
-import { WATER_RATE_PER_UNIT } from '../constants';
+import { getCurrentWaterUnitRate } from '../services/waterUnitService';
 import { supabase } from '../services/supabaseClient';
+import { pwaService } from '../services/pwaService';
 
 interface MeterReadingFormProps {
   onClose: () => void;
@@ -12,6 +13,7 @@ interface MeterReadingFormProps {
 
 const MeterReadingForm: React.FC<MeterReadingFormProps> = ({ onClose, house, setHouses, existingReading }) => {
   const isEdit = !!existingReading;
+  const [currentWaterRate, setCurrentWaterRate] = useState<number>(5);
 
   const latestReading = useMemo(() => {
     if (house.readings.length === 0) return null;
@@ -25,6 +27,26 @@ const MeterReadingForm: React.FC<MeterReadingFormProps> = ({ onClose, house, set
   const [meterImage, setMeterImage] = useState<string | null>(existingReading?.meter_image || null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  
+  // Fetch current water rate when component mounts (for new readings)
+  useEffect(() => {
+    const fetchWaterRate = async () => {
+      if (!isEdit) { // Only fetch for new readings
+        try {
+          const rate = await getCurrentWaterUnitRate();
+          setCurrentWaterRate(rate);
+        } catch (err) {
+          console.error('Failed to fetch current water rate:', err);
+          setCurrentWaterRate(5); // fallback to default
+        }
+      } else {
+        // For editing, use the rate from existing reading
+        setCurrentWaterRate(existingReading?.rate_per_unit || 5);
+      }
+    };
+
+    fetchWaterRate();
+  }, [isEdit, existingReading]);
   
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -59,7 +81,9 @@ const MeterReadingForm: React.FC<MeterReadingFormProps> = ({ onClose, house, set
     const monthKey = `${year}-${month}`;
 
     const unitsUsed = (currentReading as number) - (previousReading as number);
-    const totalAmount = unitsUsed * WATER_RATE_PER_UNIT;
+    // Use the rate stored in existing reading for edits, or current rate for new readings
+    const rateToUse = existingReading ? (existingReading.rate_per_unit || 5) : currentWaterRate;
+    const totalAmount = unitsUsed * rateToUse;
 
     try {
       if (existingReading) {
@@ -70,31 +94,43 @@ const MeterReadingForm: React.FC<MeterReadingFormProps> = ({ onClose, house, set
           previous_reading: previousReading as number,
           current_reading: currentReading as number,
           units_used: unitsUsed,
+          rate_per_unit: existingReading.rate_per_unit || 5, // Keep original rate for existing readings
           total_amount: totalAmount,
           meter_image: meterImage
         };
 
-        const { data: updatedReading, error: updateError } = await supabase
-          .from('meter_readings')
-          .update(updatePayload)
-          .eq('id', existingReading.id)
-          .select()
-          .single();
+        if (navigator.onLine) {
+          const { data: updatedReading, error: updateError } = await supabase
+            .from('meter_readings')
+            .update(updatePayload)
+            .eq('id', existingReading.id)
+            .select()
+            .single();
 
-        if (updateError) throw updateError;
+          if (updateError) throw updateError;
 
-        // Update local state for immediate UI feedback
-        setHouses(prev =>
-          prev.map(h => {
-            if (h.id === house.id) {
-              const updatedReadings = h.readings
-                .map(r => (r.id === updatedReading.id ? updatedReading : r))
-                .sort((a, b) => new Date(b.date_recorded).getTime() - new Date(a.date_recorded).getTime());
-              return { ...h, readings: updatedReadings };
-            }
-            return h;
-          })
-        );
+          // Update local state for immediate UI feedback
+          setHouses(prev =>
+            prev.map(h => {
+              if (h.id === house.id) {
+                const updatedReadings = h.readings
+                  .map(r => (r.id === updatedReading.id ? updatedReading : r))
+                  .sort((a, b) => new Date(b.date_recorded).getTime() - new Date(a.date_recorded).getTime());
+                return { ...h, readings: updatedReadings };
+              }
+              return h;
+            })
+          );
+        } else {
+          // Save for offline sync
+          await pwaService.saveOfflineData('meter_reading', {
+            action: 'update',
+            id: existingReading.id,
+            data: updatePayload
+          });
+          
+          setError('บันทึกข้อมูลออฟไลน์แล้ว จะซิงค์เมื่อเชื่อมต่ออินเทอร์เน็ต');
+        }
 
         onClose();
       } else {
@@ -106,31 +142,61 @@ const MeterReadingForm: React.FC<MeterReadingFormProps> = ({ onClose, house, set
           previous_reading: previousReading as number,
           current_reading: currentReading as number,
           units_used: unitsUsed,
+          rate_per_unit: currentWaterRate, // Use current rate for new readings
           total_amount: totalAmount,
           date_recorded: new Date().toISOString(),
           meter_image: meterImage
         };
 
-        const { data: insertedReading, error: insertError } = await supabase
-          .from('meter_readings')
-          .insert(newReadingForDb)
-          .select()
-          .single();
+        if (navigator.onLine) {
+          const { data: insertedReading, error: insertError } = await supabase
+            .from('meter_readings')
+            .insert(newReadingForDb)
+            .select()
+            .single();
 
-        if (insertError) throw insertError;
+          if (insertError) throw insertError;
 
-        // Update local state for immediate UI feedback
-        setHouses(prev =>
-          prev.map(h => {
-            if (h.id === house.id) {
-              const updatedReadings = [...h.readings, insertedReading].sort(
-                (a, b) => new Date(b.date_recorded).getTime() - new Date(a.date_recorded).getTime()
-              );
-              return { ...h, readings: updatedReadings };
-            }
-            return h;
-          })
-        );
+          // Update local state for immediate UI feedback
+          setHouses(prev =>
+            prev.map(h => {
+              if (h.id === house.id) {
+                const updatedReadings = [...h.readings, insertedReading].sort(
+                  (a, b) => new Date(b.date_recorded).getTime() - new Date(a.date_recorded).getTime()
+                );
+                return { ...h, readings: updatedReadings };
+              }
+              return h;
+            })
+          );
+        } else {
+          // Save for offline sync
+          await pwaService.saveOfflineData('meter_reading', {
+            action: 'insert',
+            data: newReadingForDb
+          });
+          
+          // Create temporary reading for UI
+          const tempReading = {
+            ...newReadingForDb,
+            id: `temp_${Date.now()}`,
+            created_at: new Date().toISOString()
+          } as MeterReading;
+          
+          setHouses(prev =>
+            prev.map(h => {
+              if (h.id === house.id) {
+                const updatedReadings = [...h.readings, tempReading].sort(
+                  (a, b) => new Date(b.date_recorded).getTime() - new Date(a.date_recorded).getTime()
+                );
+                return { ...h, readings: updatedReadings };
+              }
+              return h;
+            })
+          );
+          
+          setError('บันทึกข้อมูลออฟไลน์แล้ว จะซิงค์เมื่อเชื่อมต่ออินเทอร์เน็ต');
+        }
 
         onClose();
       }
@@ -150,7 +216,25 @@ const MeterReadingForm: React.FC<MeterReadingFormProps> = ({ onClose, house, set
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
       <div className="bg-white p-4 md:p-8 rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <h2 className="text-xl md:text-2xl font-bold mb-2">{isEdit ? 'แก้ไขค่าน้ำ' : 'บันทึกค่าน้ำ'}</h2>
-        <p className="text-gray-600 mb-4 md:mb-6">บ้านเลขที่ {house.house_number}</p>
+        <p className="text-gray-600 mb-2">บ้านเลขที่ {house.house_number}</p>
+        
+        {!navigator.onLine && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+            <div className="flex items-center gap-2 text-amber-700">
+              <i className="fas fa-wifi-slash"></i>
+              <span className="text-sm font-medium">โหมดออฟไลน์</span>
+            </div>
+            <p className="text-xs text-amber-600 mt-1">
+              ข้อมูลจะถูกบันทึกและซิงค์เมื่อเชื่อมต่ออินเทอร์เน็ตแล้ว
+            </p>
+          </div>
+        )}
+        
+        <p className="text-sm text-blue-600 mb-4">
+          อัตราค่าน้ำ: {isEdit ? (existingReading.rate_per_unit || 5) : currentWaterRate} บาท/หน่วย
+          {isEdit && ' (อัตราเดิม - ไม่สามารถแก้ไขได้)'}
+          {!isEdit && ' (อัตราปัจจุบัน)'}
+        </p>
 
         {error && <p className="text-red-500 mb-4 bg-red-100 p-3 rounded-md text-sm">{error}</p>}
         
